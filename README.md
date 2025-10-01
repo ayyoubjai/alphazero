@@ -79,11 +79,11 @@ This section explains the key differences between the two training implementatio
 
 The `trainer.py` implementation follows a **synchronous, single-process design** with batched parallel self-play. It generates a fixed number of self-play games in parallel using a `multiprocessing.Pool`, adds the trajectories to the replay buffer (including augmentations), and then performs training epochs sequentially. The model remains fixed during each batch of self-play, and the process repeats in a loop. This is straightforward for prototyping but can be less efficient for large-scale training due to idle times during data collection or training phases.
 ```mermaid
-graph TD
-  A[Start] --> B[Self-Play (Parallel via Pool)]
-  B --> C[Add Trajectories to Replay Buffer (with Symmetries)]
-  C --> D[Train Neural Network (Epochs)]
-  D --> E[Checkpoint Model]
+flowchart TD
+  A["Start"] --> B["Self Play (Parallel via Pool)"]
+  B --> C["Add Trajectories to Replay Buffer (with Symmetries)"]
+  C --> D["Train Neural Network (Epochs)"]
+  D --> E["Checkpoint Model"]
   E -->|Repeat| B
 ```
 *Diagram: Synchronous pipeline with sequential self-play, training, and evaluation stages, as used in `trainer.py`.*
@@ -92,15 +92,15 @@ graph TD
 
 In contrast, `parallel_trainer.py` uses an **asynchronous actor-learner architecture**. Multiple actor processes run continuously on CPU, generating self-play trajectories independently and enqueueing them via a shared queue. The central learner (typically on GPU) periodically collects trajectories, adds them to the buffer with augmentations, trains for several epochs, and saves checkpoints. Actors poll for updated checkpoints and reload the model dynamically, allowing self-play to improve over time without restarting. This design enables better resource utilization, live model updates, and scalability with more actors, making it suitable for long-running distributed training.
 ```mermaid
-graph TD
-  A[Start] --> B[Spawn Actors]
-  B --> C[Actors: Continuous Self-Play on CPU]
-  C --> D[Enqueue Trajectories]
-  D --> E[Learner: Collect Trajectories]
-  E --> F[Add to Replay Buffer (with Symmetries)]
-  F --> G[Train Neural Network (Epochs, GPU)]
-  G --> H[Save Checkpoint]
-  H --> I[Actors Reload Checkpoint]
+flowchart TD
+  A["Start"] --> B["Spawn Actors"]
+  B --> C["Actors: Continuous Self Play on CPU"]
+  C --> D["Enqueue Trajectories"]
+  D --> E["Learner: Collect Trajectories"]
+  E --> F["Add to Replay Buffer (with Symmetries)"]
+  F --> G["Train Neural Network (Epochs, GPU)"]
+  G --> H["Save Checkpoint"]
+  H --> I["Actors Reload Checkpoint"]
   I --> C
   H -->|Repeat| E
 ```
